@@ -2,54 +2,32 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-const Razorpay = require("razorpay");
-const crypto = require("crypto");
+const admin = require("firebase-admin");
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_SECRET
+// Firebase init
+const serviceAccount = require("./serviceAccountKey.json");
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
 });
+
+// Routes
+const authRoutes = require("./routes/auth");
+const paymentRoutes = require("./routes/payment");
+const videoRoutes = require("./routes/video");
+
+app.use("/api/auth", authRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/video", videoRoutes);
 
 // Test route
 app.get("/", (req, res) => {
-  res.send("Backend working ✅");
+    res.send("Backend running 🚀");
 });
 
-// Create Order
-app.post("/create-order", async (req, res) => {
-  const options = {
-    amount: 19900,
-    currency: "INR",
-    receipt: "receipt_" + Date.now()
-  };
-
-  const order = await razorpay.orders.create(options);
-  res.json(order);
-});
-
-// Verify Payment
-app.post("/verify-payment", (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-
-  const body = razorpay_order_id + "|" + razorpay_payment_id;
-
-  const expected = crypto
-    .createHmac("sha256", process.env.RAZORPAY_SECRET)
-    .update(body)
-    .digest("hex");
-
-  if (expected === razorpay_signature) {
-    res.json({ success: true });
-  } else {
-    res.json({ success: false });
-  }
-});
-
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log("Server running on port " + PORT));
